@@ -30,10 +30,15 @@
     "locale",
     "icon.svg",
     "README.md",
-    "README.zh.md"
+    "README.zh.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/history.test.mjs",
+    "prepublishOnly": "node --test tests/history.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dsh": {
     "bundle": {
