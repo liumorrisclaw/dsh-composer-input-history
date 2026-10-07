@@ -1,0 +1,3 @@
+- insert:
+    - id: input-history
+      name: 'dsh-composer-input-history'

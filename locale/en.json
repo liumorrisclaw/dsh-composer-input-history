@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Input history",
+    "description": "ArrowUp recalls messages you already sent in this Session; ArrowDown walks forward and restores your draft."
+  }
+}
