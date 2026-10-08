@@ -65,7 +65,7 @@ Developed and verified against `@deepseek-ai/dsh` `0.2.0-rc.2`. The plugin uses 
 
 ## Verified
 
-- 16 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
+- 23 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
 - The composed profile contains the bundle row (`dsh --profile <name> --dump-config`).
 - The browser boot graph announces the bundle with its inject list and `immediately: true`, and the web host serves the bundle body byte-for-byte.
 

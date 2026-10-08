@@ -9,4 +9,4 @@ First release.
 - Recall works from an empty draft, a single-line draft, or a caret on the first line; a caret below the first line of a multi-line draft keeps its normal move.
 - An open slash/reference menu, IME composition, held modifiers, other editable surfaces, and locked composer phases all keep the key.
 - Reads the Session transcript through the standard `useChat` hook, writes through `inputActions.setDraft`, and observes the keyboard through `ctx.shortcuts.observeFixedInput`.
-- 16 unit tests cover the history reader and the browse state machine.
+- 23 unit tests cover the history reader and the browse state machine.

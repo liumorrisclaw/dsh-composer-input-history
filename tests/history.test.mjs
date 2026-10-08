@@ -228,6 +228,93 @@ test('non-keydown and malformed records are ignored', () => {
   assert.equal(handleKey({ type: 'keydown', gesture: null, context: null }, refs), undefined);
 });
 
+test('whitespace-only and malformed content never enters the history', () => {
+  const nodes = [
+    { kind: 'user', visibility: 'visible', data: { content: [{ type: 'text', text: '   \n  ' }] } },
+    { kind: 'user', visibility: 'visible', data: { content: { type: 'text', text: 'not a list' } } },
+    { kind: 'user', visibility: 'visible', data: { content: [{ type: 'text', text: 'real' }, null] } },
+  ];
+  assert.deepEqual(historyFromNodes(nodes), ['real']);
+});
+
+test('repeated identical messages are kept in order, like a shell history', () => {
+  const nodes = ['same', 'same', 'other'].map((text) => ({
+    kind: 'user',
+    visibility: 'visible',
+    data: { content: [{ type: 'text', text }] },
+  }));
+  assert.deepEqual(historyFromNodes(nodes), ['same', 'same', 'other']);
+});
+
+test('resetting the navigator drops browse state', () => {
+  const nav = createHistoryNavigator();
+  const history = ['one', 'two'];
+  nav.up({ history, draft: '', caretOnFirstLine: false });
+  assert.equal(nav.isBrowsing(), true);
+  nav.reset();
+  assert.equal(nav.isBrowsing(), false);
+  // Browsing restarts from the newest message and forgets the abandoned draft.
+  assert.deepEqual(nav.up({ history, draft: '', caretOnFirstLine: false }), { handled: true, text: 'two' });
+});
+
+test('a held ArrowUp keeps stepping back through the history', () => {
+  const nav = createHistoryNavigator();
+  const calls = [];
+  const history = ['oldest', 'middle', 'newest'];
+  const refs = {
+    nav,
+    historyRef: { current: history },
+    inputRef: { current: { draft: '', phase: 'plain' } },
+    actionsRef: { current: { setDraft: (text) => calls.push(text) } },
+  };
+  const first = keyEvent('ArrowUp', { repeat: true });
+  handleKey(first, refs);
+  refs.inputRef.current = { draft: 'newest', phase: 'plain' };
+  nav.notifyDraft('newest');
+  const second = keyEvent('ArrowUp', { repeat: true });
+  handleKey(second, refs);
+  assert.equal(first.consumed, 1);
+  assert.equal(second.consumed, 1);
+  assert.deepEqual(calls, ['newest', 'middle']);
+});
+
+test('an adjudicating composer phase refuses draft writes', () => {
+  const nav = createHistoryNavigator();
+  const calls = [];
+  const event = keyEvent('ArrowUp');
+  handleKey(event, {
+    nav,
+    historyRef: { current: ['one'] },
+    inputRef: { current: { draft: '', phase: 'adjudicating' } },
+    actionsRef: { current: { setDraft: (text) => calls.push(text) } },
+  });
+  assert.equal(event.consumed, 0);
+  assert.deepEqual(calls, []);
+});
+
+test('other keys and a missing input state are ignored', () => {
+  const nav = createHistoryNavigator();
+  const calls = [];
+  const letter = keyEvent('KeyH');
+  handleKey(letter, {
+    nav,
+    historyRef: { current: ['one'] },
+    inputRef: { current: { draft: '', phase: 'plain' } },
+    actionsRef: { current: { setDraft: (text) => calls.push(text) } },
+  });
+  assert.equal(letter.consumed, 0);
+
+  const missingState = keyEvent('ArrowUp');
+  handleKey(missingState, { nav, historyRef: { current: ['one'] }, inputRef: { current: undefined }, actionsRef: { current: { setDraft() {} } } });
+  assert.equal(missingState.consumed, 0);
+  assert.deepEqual(calls, []);
+});
+
+test('a non-string draft is treated as empty', () => {
+  assert.equal(canStartRecall(undefined, false), true);
+  assert.equal(canStartRecall(null, false), true);
+});
+
 /** Build one fixed-input record shaped like the shortcuts service's. */
 function keyEvent(code, overrides = {}) {
   const root = { closest: (selector) => (selector === '[data-lexical-editor="true"]' ? root : null) };

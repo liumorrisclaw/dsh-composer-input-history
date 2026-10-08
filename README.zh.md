@@ -63,7 +63,7 @@ npm 上的 `dsh-input-history` 已被另一个社区插件占用，它同样用 
 
 ## 已验证
 
-- 16 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
+- 23 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
 - 组合后的 profile 含该 bundle row（`dsh --profile <name> --dump-config`）。
 - 浏览器启动图带 inject 列表与 `immediately: true` 公告该 bundle，Web 宿主按字节原样提供 bundle。
 
