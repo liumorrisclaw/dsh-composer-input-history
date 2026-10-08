@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+Fixes a reader bug that left the history empty inside a running composer.
+
+- History is now read from the Chat node store the view itself renders (`snapshot.nodes`, ordered by anchor sequence) instead of the legacy projection `legacy.nodes`. That projection carries token/step usage data, so 0.1.0 never found any message text.
+- Nodes whose visibility is not `visible` (compacted or interrupted) are skipped, matching the view's own visibility rule.
+- The keyboard is watched on two paths: a document-level `keydown` listener, which also covers Desktop where a native adapter owns the input feed, and the shortcuts `observeFixedInput` seam. Whichever acts first cancels the event, so exactly one path handles a key.
+- The reader also accepts legacy data-only entries and plain string content.
+- 26 unit tests (was 23), including the real Chat node shape, ordering, and hidden-node filtering.
+
 ## 0.1.0
 
 First release.
@@ -9,4 +19,4 @@ First release.
 - Recall works from an empty draft, a single-line draft, or a caret on the first line; a caret below the first line of a multi-line draft keeps its normal move.
 - An open slash/reference menu, IME composition, held modifiers, other editable surfaces, and locked composer phases all keep the key.
 - Reads the Session transcript through the standard `useChat` hook, writes through `inputActions.setDraft`, and observes the keyboard through `ctx.shortcuts.observeFixedInput`.
-- 23 unit tests cover the history reader and the browse state machine.
+- 16 unit tests cover the history reader and the browse state machine.

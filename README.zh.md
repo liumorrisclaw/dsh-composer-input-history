@@ -1,4 +1,4 @@
-# dsh-input-history（输入历史）
+# dsh-composer-input-history（输入历史）
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web 输入框加上终端式的历史输入——就是 opencode 里那种手感。
 
@@ -17,20 +17,28 @@
 | 翻过最新一条后再按 <kbd>↓</kbd> | 恢复浏览前的草稿 |
 | 浏览历史时手动输入 | 退出浏览，输入内容成为新草稿 |
 
-历史就是本会话自己的消息，从旧到新：普通用户消息、中途引导（steer）消息、以及唤醒一轮的那条消息。纯附件消息和注入的上下文（指令、技能、目录）会被跳过。
+历史就是本会话自己的消息，从旧到新。它直接取自 Chat 视图渲染用的节点存储（`snapshot.nodes`，按 anchor 序号排序）：普通用户消息、中途引导（steer）消息、以及唤醒一轮的那条消息。被隐藏的节点（压缩或中断）、纯附件消息、以及注入的上下文（指令、技能、目录）都会被跳过。
 
 ## 为什么用键盘观察器
 
 Harness 的 composer 明确把 <kbd>↑</kbd>/<kbd>↓</kbd> 留给它自己持有的 Lexical 编辑器，没有 slot 或命令 seam 接管这对按键。因此本插件：
 
 - 在 `conversation.composer.dock` 注册一个不可见的 Session 级占位组件；
-- 用标准 `useChat` 钩子读取本会话的 Chat 快照，用标准 `useInput` 钩子读取草稿；
+- 用标准 `useChat` 钩子读取本会话的 Chat 节点（`snapshot.nodes`），用标准 `useInput` 钩子读取草稿；
 - 用标准 `inputActions.setDraft` 写回，使这次替换仍属于 composer 自己的草稿历史；
-- 通过 shortcuts 服务的 `observeFixedInput` seam 观察文档键盘输入（它在本地控件之后运行，并给出原始事件事实），只在 composer 仍然拥有该按键时才消费它。
+- 用两条通道盯住按键：document 级 `keydown` 监听，以及 shortcuts 服务的 `observeFixedInput` seam。document 监听在 composer 自己的 keymap 之后运行，所以已打开斜杠菜单或输入法先处理过的按键仍然让行；`observeFixedInput` 则覆盖 Desktop 原生键盘适配器接管 DOM 输入的组合。因为先处理的一方会取消事件，所以实际只有一条通道生效。
 
 以下情况一律放行：斜杠/引用菜单已消费该按键、输入法正在组合、按住了修饰键、事件不在 composer 编辑器内、composer 正在提交或裁决。插件不 import 任何 Harness 客户端包，也不做任何样式。
 
 ## 安装
+
+从仓库直接安装（现在即可用）：
+
+```sh
+dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
+```
+
+发布到 npm 之后可以用短名：
 
 ```sh
 dsh plugin --profile web add dsh-composer-input-history
@@ -63,7 +71,7 @@ npm 上的 `dsh-input-history` 已被另一个社区插件占用，它同样用 
 
 ## 已验证
 
-- 23 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
+- 26 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
 - 组合后的 profile 含该 bundle row（`dsh --profile <name> --dump-config`）。
 - 浏览器启动图带 inject 列表与 `immediately: true` 公告该 bundle，Web 宿主按字节原样提供 bundle。
 

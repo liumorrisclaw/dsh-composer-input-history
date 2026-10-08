@@ -25,7 +25,7 @@ await import(pathToFileURL(join(packageRoot, 'client.js')).href);
 assert.ok(loaded !== null, 'client.js must register a bundle through __ModuleLoader__.load');
 
 const plugin = loaded.factory((id) => (id === 'react' ? {} : {}));
-const { textOfNode, historyFromNodes, createHistoryNavigator, canStartRecall, handleKey } = plugin.__test;
+const { textOfNode, nodesFromStore, historyFromNodes, createHistoryNavigator, canStartRecall, handleKey } = plugin.__test;
 
 const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
 const patch = readFileSync(join(packageRoot, 'cordis.patch.yml'), 'utf8');
@@ -313,6 +313,47 @@ test('other keys and a missing input state are ignored', () => {
 test('a non-string draft is treated as empty', () => {
   assert.equal(canStartRecall(undefined, false), true);
   assert.equal(canStartRecall(null, false), true);
+});
+
+test('nodesFromStore reads the Chat node store facade', () => {
+  const nodes = [{ key: 'a' }, { key: 'b' }];
+  assert.deepEqual(nodesFromStore({ values: () => nodes }), nodes);
+  assert.deepEqual(nodesFromStore(new Map([['a', 1]])), [1]);
+  assert.deepEqual(nodesFromStore(nodes), nodes);
+  assert.deepEqual(nodesFromStore(null), []);
+  assert.deepEqual(nodesFromStore({}), []);
+  assert.deepEqual(nodesFromStore({ values: () => undefined }), []);
+});
+
+test('historyFromNodes orders real Chat nodes by anchor and skips hidden ones', () => {
+  const node = (kind, text, anchorSeq, visibility = 'visible') => ({
+    key: kind + anchorSeq,
+    kind,
+    visibility,
+    anchorSeq,
+    data: { seq: anchorSeq, content: [{ type: 'text', text }] },
+  });
+  const attachmentOnly = node('user', 'ignored', 35);
+  attachmentOnly.data.content = [{ type: 'image', attachmentId: 'x' }];
+  const nodes = [
+    node('user', 'second', 20),
+    node('system-prompt', 'prompt', 5),
+    node('user', 'first', 10),
+    node('assistant', 'reply', 15),
+    node('user', 'hidden', 25, 'hidden'),
+    node('steering', 'note', 30),
+    attachmentOnly,
+  ];
+  assert.deepEqual(historyFromNodes(nodes), ['first', 'second', 'note']);
+});
+
+test('legacy data-only entries and plain text content still read', () => {
+  assert.equal(textOfNode({ content: [{ type: 'text', text: 'legacy' }] }), 'legacy');
+  assert.equal(textOfNode({ content: 'plain string' }), 'plain string');
+  assert.equal(textOfNode({ text: 'system prompt style' }), 'system prompt style');
+  assert.deepEqual(historyFromNodes([
+    { kind: 'user', visibility: 'visible', content: [{ type: 'text', text: 'older api shape' }] },
+  ]), ['older api shape']);
 });
 
 /** Build one fixed-input record shaped like the shortcuts service's. */

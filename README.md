@@ -1,4 +1,4 @@
-# dsh-input-history
+# dsh-composer-input-history
 
 Shell-style input history for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web composer — the behaviour you know from opencode and other terminal agents.
 
@@ -17,22 +17,28 @@ Shell-style input history for the [DeepSeek Harness](https://github.com/deepseek
 | <kbd>↓</kbd> past the newest message | restores the draft you were writing before browsing |
 | typing anything while browsing | leaves browse mode; the recalled text becomes your draft |
 
-History is the current Session's own messages, oldest to newest: ordinary user messages, steering messages, and the message that woke a turn. Attachment-only messages and injected context (instructions, skills, catalogs) are skipped.
+History is the current Session's own messages, oldest to newest, read from the Chat node store the view itself renders (`snapshot.nodes`, ordered by anchor sequence): ordinary user messages, steering messages, and the message that woke a turn. Hidden nodes (compacted or interrupted), attachment-only messages, and injected context (instructions, skills, catalogs) are skipped.
 
 ## Why it is a keyboard observer
 
 The Harness composer deliberately leaves <kbd>↑</kbd>/<kbd>↓</kbd> to its shell-owned Lexical editor, so no slot or command seam owns them. This plugin therefore:
 
 - registers an invisible Session-scoped occupant in `conversation.composer.dock`;
-- reads the Session's Chat snapshot through the standard `useChat` hook and the draft through the standard `useInput` hook;
+- reads the Session's Chat nodes through the standard `useChat` hook (`snapshot.nodes`) and the draft through the standard `useInput` hook;
 - writes the recalled text through the standard `inputActions.setDraft` API, so the edit stays part of the composer's own draft history;
-- observes the document keyboard feed through the shortcuts service's `observeFixedInput` seam, which runs after local controls and exposes the original event facts, and only consumes the key when the composer still owns it.
+- watches the key on two paths: a document-level `keydown` listener and the shortcuts service's `observeFixedInput` seam. The document listener runs after the composer's own keymap, so a slash menu or an IME that already handled the key still wins; the fixed-input seam covers compositions where a native Desktop adapter owns the DOM feed. Exactly one path acts, because the first one to act cancels the event.
 
 A key is declined when the slash/reference menu already consumed it, when an IME is composing, when a modifier is held, when the event is outside the composer editor, or when the composer is submitting/adjudicating. The plugin imports no Harness Client package and styles nothing.
 
 ## Install
 
-From a profile:
+From this repository (available now):
+
+```sh
+dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
+```
+
+Once the package is on npm, the short form is:
 
 ```sh
 dsh plugin --profile web add dsh-composer-input-history
@@ -65,7 +71,7 @@ Developed and verified against `@deepseek-ai/dsh` `0.2.0-rc.2`. The plugin uses 
 
 ## Verified
 
-- 23 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
+- 26 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
 - The composed profile contains the bundle row (`dsh --profile <name> --dump-config`).
 - The browser boot graph announces the bundle with its inject list and `immediately: true`, and the web host serves the bundle body byte-for-byte.
 

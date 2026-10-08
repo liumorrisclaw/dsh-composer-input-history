@@ -29,31 +29,61 @@
       const LOCKED_PHASES = new Set(['submitting', 'adjudicating']);
 
       /**
-       * Read the typed text of one Chat node.
-       * @param node - Chat view node.
+       * Read the typed text of one Chat node. Legacy projections carry a node's
+       * data directly, so a data-only entry is accepted as well.
+       * @param node - Chat view node, or its data.
        * @returns the node's text blocks joined by newlines, trimmed; '' when none.
        */
       function textOfNode(node) {
-        const content = node === null || node === undefined ? undefined : node.data?.content;
-        if (!Array.isArray(content)) return '';
-        const parts = [];
-        for (const block of content) {
-          if (block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string') parts.push(block.text);
+        if (node === null || node === undefined) return '';
+        const data = node.data === undefined || node.data === null ? node : node.data;
+        if (data === null || typeof data !== 'object') return '';
+        if (typeof data.content === 'string') return data.content.trim();
+        if (Array.isArray(data.content)) {
+          const parts = [];
+          for (const block of data.content) {
+            if (block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string') parts.push(block.text);
+          }
+          return parts.join('\n').trim();
         }
-        return parts.join('\n').trim();
+        if (typeof data.text === 'string') return data.text.trim();
+        return '';
+      }
+
+      /**
+       * Read the ordered Chat nodes out of the Session Chat store.
+       * @param store - `snapshot.nodes`, the store facade or a plain Map.
+       * @returns Chat view nodes; [] for an unknown shape.
+       */
+      function nodesFromStore(store) {
+        if (store === null || store === undefined) return [];
+        if (Array.isArray(store)) return store;
+        if (typeof store.values === 'function') {
+          const value = store.values();
+          if (Array.isArray(value)) return value;
+          if (value !== null && value !== undefined && typeof value[Symbol.iterator] === 'function') return [...value];
+        }
+        return [];
       }
 
       /**
        * Collect the Session's sent texts, oldest first.
-       * @param nodes - Chat snapshot node list (`legacy.nodes`).
-       * @returns recalled texts; attachment-only and injected messages are skipped.
+       * @param nodes - Chat view nodes, in any order.
+       * @returns recalled texts; hidden, injected, and attachment-only messages are skipped.
        */
       function historyFromNodes(nodes) {
-        if (!Array.isArray(nodes)) return [];
+        if (!Array.isArray(nodes) || nodes.length === 0) return [];
+        const order = (node) => {
+          if (node !== null && node !== undefined && typeof node.anchorSeq === 'number') return node.anchorSeq;
+          const seq = node === null || node === undefined || node.data === null || node.data === undefined ? undefined : node.data.seq;
+          return typeof seq === 'number' ? seq : 0;
+        };
+        const ordered = [...nodes].sort((left, right) => order(left) - order(right));
         const history = [];
-        for (const node of nodes) {
-          if (node === null || typeof node !== 'object') continue;
-          if (node.visibility === 'invisible') continue;
+        for (const node of ordered) {
+          if (node === null || node === undefined || typeof node !== 'object') continue;
+          // Hidden nodes (compacted or interrupted) are not recallable.
+          if (node.visibility !== undefined && node.visibility !== 'visible') continue;
           if (!HUMAN_KINDS.has(node.kind)) continue;
           const text = textOfNode(node);
           if (text !== '') history.push(text);
@@ -169,41 +199,74 @@
         };
       }
 
+      /* Opt-in in-page diagnostics: off by default in the shipped package. While
+         developing, flip DEBUG_ENABLED here (or set window.__DSH_INPUT_HISTORY_DEBUG
+         before the bundle loads) to render a status pill and expose
+         window.__dshInputHistory with the latest arbitration reason. */
+      const DEBUG_ENABLED = false;
+      const DEBUG = DEBUG_ENABLED || (typeof window !== 'undefined' && window.__DSH_INPUT_HISTORY_DEBUG === true);
+      const debugState = { mounted: 0, observer: 'none', keydowns: 0, domKeydowns: 0, arrows: 0, recalled: 0, path: 'none', last: 'start' };
+      const debugNodes = new Set();
+      function paintDebug() {
+        if (!DEBUG) return;
+        if (typeof window !== 'undefined') window.__dshInputHistory = { ...debugState };
+        const text = 'IH m=' + debugState.mounted + ' obs=' + debugState.observer + ' dom=' + debugState.domKeydowns + ' k=' + debugState.keydowns + ' a=' + debugState.arrows + ' r=' + debugState.recalled + ' path=' + debugState.path + ' last=' + debugState.last;
+        for (const node of debugNodes) {
+          try {
+            node.textContent = text;
+          } catch {
+            /* the node may be detached */
+          }
+        }
+      }
+      function noteDebug(reason) {
+        if (!DEBUG) return;
+        debugState.last = reason;
+        paintDebug();
+      }
+
       /**
        * Arbitrate one fixed-input record.
        * @param event - `{ type, gesture, context, consume }` from the shortcuts service.
        * @param refs - live navigator, history, input state, and input actions.
        */
-      function handleKey(event, refs) {
-        if (event === null || event === undefined || event.type !== 'keydown') return;
+      function handleKey(event, refs, path = 'fixed') {
+        if (event === null || event === undefined || event.type !== 'keydown') { noteDebug('non-keydown'); return; }
+        if (path === 'dom') debugState.domKeydowns += 1;
+        else debugState.keydowns += 1;
         const gesture = event.gesture;
         const context = event.context;
-        if (gesture === undefined || gesture === null || context === undefined || context === null) return;
+        if (gesture === undefined || gesture === null || context === undefined || context === null) { noteDebug('bad-record'); return; }
         // Consumed by the composer's own keymap (an open slash/reference menu) or by an IME.
-        if (gesture.defaultPrevented || gesture.composing) return;
-        if (gesture.control || gesture.alt || gesture.meta || gesture.shift) return;
-        if (gesture.code !== 'ArrowUp' && gesture.code !== 'ArrowDown') return;
+        if (gesture.defaultPrevented || gesture.composing) { noteDebug(gesture.defaultPrevented ? 'consumed-upstream' : 'composing'); return; }
+        if (gesture.control || gesture.alt || gesture.meta || gesture.shift) { noteDebug('modifier'); return; }
+        if (gesture.code !== 'ArrowUp' && gesture.code !== 'ArrowDown') { noteDebug('other-key:' + gesture.code); return; }
+        debugState.arrows += 1;
+        debugState.path = path;
         const target = context.target;
-        if (target === null || target === undefined || typeof target.closest !== 'function') return;
+        if (target === null || target === undefined || typeof target.closest !== 'function') { noteDebug('no-target'); return; }
         const root = target.closest(EDITOR_SELECTOR);
-        if (root === null) return;
+        if (root === null) { noteDebug('not-editor'); return; }
 
         const input = refs.inputRef.current;
         const actions = refs.actionsRef.current;
-        if (input === undefined || input === null || actions === undefined || actions === null) return;
-        if (typeof actions.setDraft !== 'function') return;
-        if (LOCKED_PHASES.has(input.phase)) return;
+        if (input === undefined || input === null || actions === undefined || actions === null) { noteDebug('no-input'); return; }
+        if (typeof actions.setDraft !== 'function') { noteDebug('no-setDraft'); return; }
+        if (LOCKED_PHASES.has(input.phase)) { noteDebug('locked:' + input.phase); return; }
 
         const draft = typeof input.draft === 'string' ? input.draft : '';
         const nav = refs.nav;
+        const history = refs.historyRef.current;
         const result = gesture.code === 'ArrowUp'
-          ? nav.up({ history: refs.historyRef.current, draft, caretOnFirstLine: caretOnFirstLine(root) })
-          : nav.down({ history: refs.historyRef.current, draft });
-        if (result.handled !== true) return;
+          ? nav.up({ history, draft, caretOnFirstLine: caretOnFirstLine(root) })
+          : nav.down({ history, draft });
+        if (result.handled !== true) { noteDebug('refused:' + gesture.code + ' n=' + (Array.isArray(history) ? history.length : 'x')); return; }
 
+        debugState.recalled += 1;
         // Cancel the browser's caret move before the default action runs.
         event.consume();
         if (typeof result.text === 'string' && result.text !== draft) actions.setDraft(result.text);
+        noteDebug('handled:' + gesture.code);
       }
 
       /**
@@ -217,7 +280,7 @@
         // than crash the dock entry if another composition omits one.
         const useChatHook = typeof props.useChat === 'function' ? props.useChat : null;
         const useInputHook = typeof props.useInput === 'function' ? props.useInput : null;
-        const nodes = useChatHook === null ? undefined : useChatHook((snapshot) => (snapshot === null || snapshot === undefined ? undefined : snapshot.legacy?.nodes));
+        const nodes = useChatHook === null ? undefined : useChatHook((snapshot) => (snapshot === null || snapshot === undefined ? undefined : nodesFromStore(snapshot.nodes)));
         const input = useInputHook === null ? undefined : useInputHook((state) => state);
 
         const navRef = React.useRef(null);
@@ -239,16 +302,77 @@
           nav.notifyDraft(input !== null && input !== undefined && typeof input.draft === 'string' ? input.draft : '');
         }, [nav, input]);
 
-        // Observe the window keyboard feed while this Session's composer is mounted.
+        // Two keyboard paths on purpose: Desktop owns its keys through a native
+        // adapter, so the shared fixed-input feed may be absent or bypassed there,
+        // while on Web nothing claims ArrowUp/ArrowDown at all.
         React.useEffect(() => {
+          debugState.mounted += 1;
+          const refs = { nav, historyRef, inputRef, actionsRef };
+
+          // Primary path: our own listener on the document. It runs after the
+          // composer's own keymap handled the key, so an open slash/reference menu
+          // or an IME that already consumed it still wins.
+          let onKeyDown = null;
+          if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+            onKeyDown = (domEvent) => {
+              handleKey({
+                type: 'keydown',
+                gesture: {
+                  code: domEvent.code,
+                  control: domEvent.ctrlKey,
+                  alt: domEvent.altKey,
+                  meta: domEvent.metaKey,
+                  shift: domEvent.shiftKey,
+                  repeat: domEvent.repeat,
+                  composing: domEvent.isComposing === true,
+                  defaultPrevented: domEvent.defaultPrevented,
+                },
+                context: { region: 'editable', target: domEvent.target },
+                consume: () => domEvent.preventDefault(),
+              }, refs, 'dom');
+            };
+            document.addEventListener('keydown', onKeyDown);
+          } else {
+            debugState.observer = 'no-dom';
+          }
+
+          // Secondary path: the shared fixed-input feed, when this composition has one.
           const shortcuts = ctx.shortcuts;
-          if (shortcuts === undefined || shortcuts === null || typeof shortcuts.observeFixedInput !== 'function') return undefined;
-          return shortcuts.observeFixedInput((event) => {
-            handleKey(event, { nav, historyRef, inputRef, actionsRef });
-          });
+          let off = () => {};
+          if (shortcuts !== undefined && shortcuts !== null && typeof shortcuts.observeFixedInput === 'function') {
+            debugState.observer = debugState.observer === 'no-dom' ? 'no-dom' : 'installed';
+            off = shortcuts.observeFixedInput((event) => {
+              handleKey(event, refs, 'fixed');
+            });
+          } else if (debugState.observer === 'none') {
+            debugState.observer = 'missing';
+          }
+          paintDebug();
+
+          return () => {
+            if (onKeyDown !== null) document.removeEventListener('keydown', onKeyDown);
+            off();
+            debugState.mounted -= 1;
+            paintDebug();
+          };
         }, [nav]);
 
-        return null;
+        // Optional diagnostic pill, rendered only while DEBUG is on.
+        if (!DEBUG) return null;
+        return React.createElement('span', {
+          ref: (node) => {
+            if (node === null) return;
+            debugNodes.add(node);
+            paintDebug();
+          },
+          'data-dsh-input-history-debug': '1',
+          style: {
+            font: '10px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace',
+            color: 'var(--dsw-alias-text-tertiary, #8a8a8a)',
+            padding: '2px 6px',
+            pointerEvents: 'none',
+          },
+        }, 'IH');
       }
 
       return {
@@ -261,7 +385,7 @@
           }, InputHistory));
         },
         /** Pure helpers, exposed for the package's own tests. */
-        __test: { textOfNode, historyFromNodes, createHistoryNavigator, canStartRecall, handleKey },
+        __test: { textOfNode, nodesFromStore, historyFromNodes, createHistoryNavigator, canStartRecall, handleKey },
       };
     },
   });

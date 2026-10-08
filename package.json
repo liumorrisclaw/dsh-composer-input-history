@@ -1,6 +1,6 @@
 {
   "name": "dsh-composer-input-history",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Shell-style input history for the DSH composer: ArrowUp recalls messages you already sent, ArrowDown walks forward and restores your draft.",
   "license": "MIT",
