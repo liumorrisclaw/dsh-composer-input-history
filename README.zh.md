@@ -17,7 +17,7 @@
 | 翻过最新一条后再按 <kbd>↓</kbd> | 恢复浏览前的草稿 |
 | 浏览历史时手动输入 | 退出浏览，输入内容成为新草稿 |
 
-历史就是本会话自己的消息，从旧到新。它直接取自 Chat 视图渲染用的节点存储（`snapshot.nodes`，按 anchor 序号排序）：普通用户消息、中途引导（steer）消息、以及唤醒一轮的那条消息。被隐藏的节点（压缩或中断）、纯附件消息、以及注入的上下文（指令、技能、目录）都会被跳过。
+历史就是**你自己发出去的内容**，从旧到新。它直接取自 Chat 视图渲染用的节点存储（`snapshot.nodes`，按 anchor 序号排序）：普通用户消息、中途引导（steer）消息、以及唤醒一轮的那条消息。以下一律跳过：被隐藏的节点（压缩或中断）、纯附件消息，以及 Harness 代你生成的一切——goal 轮次提示、技能目录、运行时快照、任务通知、模型切换通知、审批回答、压缩检查点。
 
 ## 为什么用键盘观察器
 
@@ -71,7 +71,7 @@ npm 上的 `dsh-input-history` 已被另一个社区插件占用，它同样用 
 
 ## 已验证
 
-- 26 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
+- 27 项单测覆盖纯历史读取与浏览状态机（`npm test`），并由 `.github/workflows/ci.yml` 在每次 push 时于 Node 20 与 22 上运行。
 - 组合后的 profile 含该 bundle row（`dsh --profile <name> --dump-config`）。
 - 浏览器启动图带 inject 列表与 `immediately: true` 公告该 bundle，Web 宿主按字节原样提供 bundle。
 

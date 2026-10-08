@@ -27,6 +27,18 @@
       const HUMAN_KINDS = new Set(['user', 'steering', 'turn-trigger']);
       /** Composer phases that refuse draft writes. */
       const LOCKED_PHASES = new Set(['submitting', 'adjudicating']);
+      /** Message provenance the Harness authors for the user; never part of the history. */
+      const INJECTED_SOURCE_KINDS = new Set([
+        'goal',
+        'runtime-context',
+        'skill-catalog',
+        'tool-jobs',
+        'model-selection',
+        'compact-checkpoint',
+        'user-approval',
+        'command',
+        'system',
+      ]);
 
       /**
        * Read the typed text of one Chat node. Legacy projections carry a node's
@@ -85,6 +97,12 @@
           // Hidden nodes (compacted or interrupted) are not recallable.
           if (node.visibility !== undefined && node.visibility !== 'visible') continue;
           if (!HUMAN_KINDS.has(node.kind)) continue;
+          const data = node.data === undefined || node.data === null ? node : node.data;
+          const sourceKind = data === null || typeof data !== 'object' ? undefined : data.source?.kind;
+          // Harness-authored messages the Session carries on the user's behalf
+          // (goal rounds, catalogs, runtime snapshots, job notices, approvals,
+          // compaction checkpoints) are noise in a shell-style history.
+          if (typeof sourceKind === 'string' && INJECTED_SOURCE_KINDS.has(sourceKind)) continue;
           const text = textOfNode(node);
           if (text !== '') history.push(text);
         }

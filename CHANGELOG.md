@@ -8,7 +8,8 @@ Fixes a reader bug that left the history empty inside a running composer.
 - Nodes whose visibility is not `visible` (compacted or interrupted) are skipped, matching the view's own visibility rule.
 - The keyboard is watched on two paths: a document-level `keydown` listener, which also covers Desktop where a native adapter owns the input feed, and the shortcuts `observeFixedInput` seam. Whichever acts first cancels the event, so exactly one path handles a key.
 - The reader also accepts legacy data-only entries and plain string content.
-- 26 unit tests (was 23), including the real Chat node shape, ordering, and hidden-node filtering.
+- Messages the Harness authors on the user's behalf are skipped by provenance: goal rounds, skill catalogs, runtime snapshots, job notices, model notices, approval answers, and compaction checkpoints.
+- 27 unit tests (was 23), including the real Chat node shape, ordering, hidden-node filtering, and provenance.
 
 ## 0.1.0
 

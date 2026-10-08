@@ -356,6 +356,32 @@ test('legacy data-only entries and plain text content still read', () => {
   ]), ['older api shape']);
 });
 
+test('harness-authored messages are skipped, typed ones are kept', () => {
+  const node = (text, source, anchorSeq) => ({
+    key: `k${anchorSeq}`,
+    kind: 'user',
+    visibility: 'visible',
+    anchorSeq,
+    data: { seq: anchorSeq, content: [{ type: 'text', text }], source },
+  });
+  const nodes = [
+    node('typed one', { kind: 'user', rpcId: 'r1' }, 1),
+    node('<goal_round>…', { kind: 'goal', goalId: 'g', revision: 1, round: 1 }, 2),
+    node('runtime snapshot', { kind: 'runtime-context', form: 'snapshot' }, 3),
+    node('catalog', { kind: 'skill-catalog', form: 'catalog' }, 4),
+    node('job notice', { kind: 'tool-jobs', form: 'notice' }, 5),
+    node('model notice', { kind: 'model-selection', form: 'notice' }, 6),
+    node('checkpoint', { kind: 'compact-checkpoint' }, 7),
+    node('approval answer', { kind: 'user-approval' }, 8),
+    node('typed two', { kind: 'user', rpcId: 'r2' }, 9),
+    node('unknown provenance', { kind: 'something-else' }, 10),
+    node('no provenance', undefined, 11),
+    node('steer', { kind: 'user', rpcId: 'r3' }, 12),
+  ];
+  nodes[11].kind = 'steering';
+  assert.deepEqual(historyFromNodes(nodes), ['typed one', 'typed two', 'unknown provenance', 'no provenance', 'steer']);
+});
+
 /** Build one fixed-input record shaped like the shortcuts service's. */
 function keyEvent(code, overrides = {}) {
   const root = { closest: (selector) => (selector === '[data-lexical-editor="true"]' ? root : null) };

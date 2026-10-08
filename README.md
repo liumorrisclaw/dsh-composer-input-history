@@ -17,7 +17,7 @@ Shell-style input history for the [DeepSeek Harness](https://github.com/deepseek
 | <kbd>↓</kbd> past the newest message | restores the draft you were writing before browsing |
 | typing anything while browsing | leaves browse mode; the recalled text becomes your draft |
 
-History is the current Session's own messages, oldest to newest, read from the Chat node store the view itself renders (`snapshot.nodes`, ordered by anchor sequence): ordinary user messages, steering messages, and the message that woke a turn. Hidden nodes (compacted or interrupted), attachment-only messages, and injected context (instructions, skills, catalogs) are skipped.
+History is what you sent in this Session, oldest to newest, read from the Chat node store the view itself renders (`snapshot.nodes`, ordered by anchor sequence): ordinary user messages, steering messages, and the message that woke a turn. Skipped: hidden nodes (compacted or interrupted), attachment-only messages, and everything the Harness authors on your behalf — goal rounds, skill catalogs, runtime snapshots, job notices, model notices, approval answers, and compaction checkpoints.
 
 ## Why it is a keyboard observer
 
@@ -71,7 +71,7 @@ Developed and verified against `@deepseek-ai/dsh` `0.2.0-rc.2`. The plugin uses 
 
 ## Verified
 
-- 26 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
+- 27 unit tests over the pure history reader and browse state machine (`npm test`), run on every push by `.github/workflows/ci.yml` on Node 20 and 22.
 - The composed profile contains the bundle row (`dsh --profile <name> --dump-config`).
 - The browser boot graph announces the bundle with its inject list and `immediately: true`, and the web host serves the bundle body byte-for-byte.
 
