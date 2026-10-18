@@ -1,8 +1,8 @@
 {
   "name": "dsh-composer-input-history",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
-  "description": "Shell-style input history for the DSH composer: ArrowUp recalls messages you already sent, ArrowDown walks forward and restores your draft.",
+  "description": "Shell-style input history for the DSH composer: ArrowUp recalls messages you already sent, ArrowDown walks forward, restores your draft, and a further press discards it.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,8 +34,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node --test tests/history.test.mjs",
-    "prepublishOnly": "node --test tests/history.test.mjs"
+    "test": "node --test tests/history.test.mjs tests/composer-sim.test.mjs",
+    "prepublishOnly": "node --test tests/history.test.mjs tests/composer-sim.test.mjs"
   },
   "publishConfig": {
     "access": "public"
