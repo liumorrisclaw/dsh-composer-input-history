@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Manifest declares an installable DSH bundle
+        run: node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const fail=(m)=>{console.error(m);process.exit(1)};if(p.private===true)fail('package must not be private');if(!p.dsh||!p.dsh.bundle||!p.dsh.bundle.patch)fail('dsh.bundle.patch is required for dsh plugin add');if(!fs.existsSync(p.dsh.bundle.patch))fail('the declared bundle patch file is missing');if(!p.dsh.client)fail('dsh.client is required for the browser half');if(!p.exports||!p.exports['./client'])fail('the ./client export is required');if(!fs.existsSync('client.js'))fail('client.js is missing');console.log('manifest ok')"
+
+      - name: Unit tests
+        run: node --test tests/history.test.mjs
+
+      - name: Packed tarball ships the plugin files
+        run: |
+          npm pack --dry-run
+          test -f client.js
+          test -f cordis.patch.yml
+          test -f locale/en.json
