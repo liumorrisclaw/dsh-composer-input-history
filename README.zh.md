@@ -36,16 +36,16 @@ Harness 的 composer 明确把 <kbd>↑</kbd>/<kbd>↓</kbd> 留给它自己持�
 
 ## 安装
 
-从仓库直接安装（现在即可用）：
-
-```sh
-dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
-```
-
-发布到 npm 之后可以用短名：
+从 npm 安装（短名）：
 
 ```sh
 dsh plugin --profile web add dsh-composer-input-history
+```
+
+或直接从仓库安装：
+
+```sh
+dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
 ```
 
 也可以在 Web 界面的 **Plugins** 页安装，或用插件管理器直接选择本地包目录。默认关闭，需要由 profile 选中后启用。

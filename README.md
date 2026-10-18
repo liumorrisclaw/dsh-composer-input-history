@@ -36,19 +36,19 @@ A key is declined when an open menu owns it, when an IME is composing, when a mo
 
 ## Install
 
-From this repository (available now):
-
-```sh
-dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
-```
-
-Once the package is on npm, the short form is:
+From npm (short form):
 
 ```sh
 dsh plugin --profile web add dsh-composer-input-history
 ```
 
-Or add it in the Web UI's **Plugins** page, or list the package directory with the plugin manager. The bundle ships off until the profile selects it.
+Or straight from this repository:
+
+```sh
+dsh plugin --profile web add https://github.com/liumorrisclaw/dsh-composer-input-history
+```
+
+You can also add it in the Web UI's **Plugins** page, or list the package directory with the plugin manager. The bundle ships off until the profile selects it.
 
 For a local checkout, install by path:
 
